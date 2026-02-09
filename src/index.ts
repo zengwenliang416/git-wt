@@ -2,7 +2,7 @@
 import { Command } from 'commander';
 import { simpleGit } from 'simple-git';
 import chalk from 'chalk';
-import * as fs from 'fs-extra';
+import fs from 'fs-extra';
 import * as path from 'path';
 import inquirer from 'inquirer';
 import ora from 'ora';
