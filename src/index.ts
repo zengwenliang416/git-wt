@@ -80,11 +80,25 @@ const run = async () => {
           spinner.succeed('Bare repository found');
           
           spinner.start('Fetching latest updates from remote...');
-          await simpleGit(bareRepoPath).fetch('origin');
+          await simpleGit(bareRepoPath)
+            .outputHandler((_command, _stdout, stderr) => {
+               stderr.on('data', (data) => {
+                 const line = data.toString().trim();
+                 if (line) spinner.text = `Fetching: ${line}`;
+               });
+            })
+            .fetch('origin');
           spinner.succeed('Repository updated');
         } else {
           spinner.start(`Cloning bare repository to ${chalk.dim(bareRepoPath)}...`);
-          await git.clone(url, bareRepoPath, ['--bare']);
+          await git
+            .outputHandler((_command, _stdout, stderr) => {
+               stderr.on('data', (data) => {
+                 const line = data.toString().trim();
+                 if (line) spinner.text = `Cloning: ${line}`;
+               });
+            })
+            .clone(url, bareRepoPath, ['--bare', '--progress']);
           spinner.succeed('Repository cloned successfully');
         }
 
