@@ -219,9 +219,17 @@ export const collectInputsWithTui = (initial: PartialInputs): Promise<WorkspaceI
     screen.key(['escape', 'q', 'C-c'], cancel);
     screen.key(['C-s'], submit);
 
-    urlInput.key('enter', () => focusAt(1));
-    branchInput.key('enter', () => focusAt(2));
-    dirInput.key('enter', submit);
+    // With inputOnFocus=true, Textbox handles Enter internally. Hook into its
+    // submit event instead of keypress to avoid racing blessed's _done cleanup.
+    urlInput.on('submit', () => {
+      setImmediate(() => focusAt(1));
+    });
+    branchInput.on('submit', () => {
+      setImmediate(() => focusAt(2));
+    });
+    dirInput.on('submit', () => {
+      setImmediate(submit);
+    });
     submitButton.on('press', submit);
     cancelButton.on('press', cancel);
 
