@@ -1,6 +1,6 @@
 {
   "name": "git-easy-worktree",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "CLI tool to create git worktrees from URL",
   "type": "module",
   "main": "dist/index.js",
