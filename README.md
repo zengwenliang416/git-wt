@@ -18,8 +18,11 @@ npm link
 ## Usage
 
 ```bash
-git-wt <repo-url> <branch-name> [options]
+git-wt [repo-url] [branch-name] [options]
 ```
+
+> In an interactive terminal, `git-wt` always launches the full-screen TUI.
+> Optional `repo-url` and `branch-name` are used as prefilled values.
 
 ### Options
 
@@ -28,13 +31,11 @@ git-wt <repo-url> <branch-name> [options]
 ### Example
 
 ```bash
-# Create a worktree for the 'master' branch of Hello-World
-git-wt https://github.com/octocat/Hello-World.git master
+# Launch TUI with empty fields
+git-wt
 
-# Resulting structure:
-# ./Hello-World/
-#   .bare/    (Bare repository)
-#   master/   (Worktree)
+# Launch TUI with prefilled repository and branch
+git-wt https://github.com/octocat/Hello-World.git master
 ```
 
 ## Development
