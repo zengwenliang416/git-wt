@@ -18,8 +18,10 @@ npm link
 ## Usage
 
 ```bash
-git-wt <repo-url> <branch-name> [options]
+git-wt [repo-url] [branch-name] [options]
 ```
+
+If `repo-url` or `branch-name` is missing, the CLI will prompt you to enter it interactively.
 
 ### Options
 
@@ -30,6 +32,9 @@ git-wt <repo-url> <branch-name> [options]
 ```bash
 # Create a worktree for the 'master' branch of Hello-World
 git-wt https://github.com/octocat/Hello-World.git master
+
+# Start interactive input mode
+git-wt
 
 # Resulting structure:
 # ./Hello-World/

@@ -60,7 +60,7 @@ test('shows CLI error when required arguments are missing', () => {
   assert.notEqual(result.status, 0, result.stderr || result.stdout);
   assert.match(
     `${result.stdout}\n${result.stderr}`,
-    /missing required argument 'url'/i,
+    /Missing required arguments in non-interactive mode/i,
   );
 });
 

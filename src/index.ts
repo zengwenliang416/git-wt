@@ -9,6 +9,7 @@ import boxen from 'boxen';
 import figlet from 'figlet';
 import gradient from 'gradient-string';
 import { createRequire } from 'node:module';
+import { createInterface } from 'node:readline/promises';
 
 type CliOptions = {
   dir: string;
@@ -46,14 +47,48 @@ const resolveRepoName = (url: string): string => {
   return repoName;
 };
 
-const resolveInputs = (
+const promptRequiredValue = async (label: string): Promise<string> => {
+  const rl = createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  try {
+    while (true) {
+      const value = (await rl.question(`${label}: `)).trim();
+      if (value) {
+        return value;
+      }
+      console.log(chalk.yellow(`${label} is required.`));
+    }
+  } finally {
+    rl.close();
+  }
+};
+
+const resolveInputs = async (
   urlArg: string | undefined,
   branchArg: string | undefined,
   dirArg: string,
-): { url: string; branch: string; dir: string } => {
-  const url = urlArg?.trim();
-  const branch = branchArg?.trim();
+): Promise<{ url: string; branch: string; dir: string }> => {
+  let url = urlArg?.trim();
+  let branch = branchArg?.trim();
   const dir = dirArg.trim() || process.cwd();
+
+  if (!url || !branch) {
+    if (!process.stdin.isTTY || !process.stdout.isTTY) {
+      throw new Error('Missing required arguments in non-interactive mode. Usage: git-wt <repo-url> <branch-name> [options]');
+    }
+
+    console.log(chalk.cyan('Missing arguments, entering interactive input mode.'));
+
+    if (!url) {
+      url = await promptRequiredValue('Enter Git repository URL');
+    }
+    if (!branch) {
+      branch = await promptRequiredValue('Enter branch name');
+    }
+  }
 
   if (!url || !branch) {
     throw new Error('Usage: git-wt <repo-url> <branch-name> [options]');
@@ -141,13 +176,13 @@ const run = async () => {
     .name('git-wt')
     .description('A CLI tool to create git worktrees from a repository URL and branch name')
     .version(version)
-    .argument('<url>', 'Git repository URL')
-    .argument('<branch>', 'Branch name to checkout')
+    .argument('[url]', 'Git repository URL')
+    .argument('[branch]', 'Branch name to checkout')
     .option('-d, --dir <directory>', 'Base directory for worktrees', process.cwd())
-    .action(async (urlArg: string, branchArg: string, options: CliOptions) => {
+    .action(async (urlArg: string | undefined, branchArg: string | undefined, options: CliOptions) => {
       const spinner = ora();
       try {
-        const { url, branch, dir } = resolveInputs(urlArg, branchArg, options.dir);
+        const { url, branch, dir } = await resolveInputs(urlArg, branchArg, options.dir);
         const repoName = resolveRepoName(url);
         const baseDir = path.resolve(dir);
 
