@@ -9,7 +9,6 @@ import boxen from 'boxen';
 import figlet from 'figlet';
 import gradient from 'gradient-string';
 import { createRequire } from 'node:module';
-import { collectInputsWithTui } from './tui.js';
 
 type CliOptions = {
   dir: string;
@@ -47,33 +46,20 @@ const resolveRepoName = (url: string): string => {
   return repoName;
 };
 
-const resolveInputs = async (
+const resolveInputs = (
   urlArg: string | undefined,
   branchArg: string | undefined,
   dirArg: string,
-): Promise<{ url: string; branch: string; dir: string }> => {
+): { url: string; branch: string; dir: string } => {
   const url = urlArg?.trim();
   const branch = branchArg?.trim();
   const dir = dirArg.trim() || process.cwd();
 
-  if (process.stdin.isTTY && process.stdout.isTTY) {
-    const initialValues: { dir: string; url?: string; branch?: string } = { dir };
-    if (url) {
-      initialValues.url = url;
-    }
-    if (branch) {
-      initialValues.branch = branch;
-    }
-
-    return collectInputsWithTui(initialValues);
+  if (!url || !branch) {
+    throw new Error('Usage: git-wt <repo-url> <branch-name> [options]');
   }
 
-  // Non-interactive environments cannot render TUI, so keep a script-friendly fallback.
-  if (url && branch) {
-    return { url, branch, dir };
-  }
-
-  throw new Error('TUI requires an interactive terminal. In non-interactive mode, pass <repo-url> <branch-name>.');
+  return { url, branch, dir };
 };
 
 const ensureBareRepository = async (
@@ -155,13 +141,13 @@ const run = async () => {
     .name('git-wt')
     .description('A CLI tool to create git worktrees from a repository URL and branch name')
     .version(version)
-    .argument('[url]', 'Optional: prefill Git repository URL in TUI')
-    .argument('[branch]', 'Optional: prefill branch name in TUI')
+    .argument('<url>', 'Git repository URL')
+    .argument('<branch>', 'Branch name to checkout')
     .option('-d, --dir <directory>', 'Base directory for worktrees', process.cwd())
-    .action(async (urlArg: string | undefined, branchArg: string | undefined, options: CliOptions) => {
+    .action(async (urlArg: string, branchArg: string, options: CliOptions) => {
       const spinner = ora();
       try {
-        const { url, branch, dir } = await resolveInputs(urlArg, branchArg, options.dir);
+        const { url, branch, dir } = resolveInputs(urlArg, branchArg, options.dir);
         const repoName = resolveRepoName(url);
         const baseDir = path.resolve(dir);
 

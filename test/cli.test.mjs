@@ -55,12 +55,12 @@ test('uses package.json version in --version output', () => {
   assert.match(result.stdout, new RegExp(`\\b${escapeRegExp(version)}\\b`));
 });
 
-test('shows non-interactive hint when no inputs are provided', () => {
+test('shows CLI error when required arguments are missing', () => {
   const result = runCli([]);
   assert.notEqual(result.status, 0, result.stderr || result.stdout);
   assert.match(
     `${result.stdout}\n${result.stderr}`,
-    /TUI requires an interactive terminal.*<repo-url> <branch-name>/i,
+    /missing required argument 'url'/i,
   );
 });
 
