@@ -114,3 +114,39 @@ test('creates new branch when requested branch does not exist in remote', () => 
     rmSync(workspaceDir, { recursive: true, force: true });
   }
 });
+
+test('creates worktrees for multiple branches passed as separate arguments', () => {
+  const workspaceDir = mkdtempSync(path.join(tmpdir(), 'git-wt-test-'));
+
+  try {
+    const { remotePath } = createRemoteRepo(workspaceDir);
+    const baseDir = path.join(workspaceDir, 'worktrees');
+    const repoName = 'remote';
+    const branches = ['feature-a', 'feature-b'];
+
+    const result = runCli([remotePath, ...branches, '--dir', baseDir]);
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    for (const branch of branches) {
+      assert.equal(existsSync(path.join(baseDir, repoName, branch)), true);
+    }
+  } finally {
+    rmSync(workspaceDir, { recursive: true, force: true });
+  }
+});
+
+test('creates worktrees for comma-separated branch input', () => {
+  const workspaceDir = mkdtempSync(path.join(tmpdir(), 'git-wt-test-'));
+
+  try {
+    const { remotePath } = createRemoteRepo(workspaceDir);
+    const baseDir = path.join(workspaceDir, 'worktrees');
+    const repoName = 'remote';
+
+    const result = runCli([remotePath, 'feature-c,feature-d', '--dir', baseDir]);
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.equal(existsSync(path.join(baseDir, repoName, 'feature-c')), true);
+    assert.equal(existsSync(path.join(baseDir, repoName, 'feature-d')), true);
+  } finally {
+    rmSync(workspaceDir, { recursive: true, force: true });
+  }
+});

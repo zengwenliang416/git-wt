@@ -47,6 +47,20 @@ const resolveRepoName = (url: string): string => {
   return repoName;
 };
 
+const splitBranchInput = (value: string): string[] =>
+  value
+    .split(/[,\s]+/)
+    .map((branch) => branch.trim())
+    .filter(Boolean);
+
+const normalizeBranches = (branchArgs: string[] | undefined): string[] => {
+  if (!branchArgs) {
+    return [];
+  }
+
+  return Array.from(new Set(branchArgs.flatMap(splitBranchInput)));
+};
+
 const promptRequiredValue = async (label: string): Promise<string> => {
   const rl = createInterface({
     input: process.stdin,
@@ -66,18 +80,32 @@ const promptRequiredValue = async (label: string): Promise<string> => {
   }
 };
 
+const promptRequiredBranches = async (): Promise<string[]> => {
+  while (true) {
+    const value = await promptRequiredValue('Enter branch name(s), separated by comma or space');
+    const branches = normalizeBranches([value]);
+    if (branches.length > 0) {
+      return branches;
+    }
+
+    console.log(chalk.yellow('At least one branch name is required.'));
+  }
+};
+
 const resolveInputs = async (
   urlArg: string | undefined,
-  branchArg: string | undefined,
+  branchArgs: string[] | undefined,
   dirArg: string,
-): Promise<{ url: string; branch: string; dir: string }> => {
+): Promise<{ url: string; branches: string[]; dir: string }> => {
   let url = urlArg?.trim();
-  let branch = branchArg?.trim();
+  let branches = normalizeBranches(branchArgs);
   const dir = dirArg.trim() || process.cwd();
 
-  if (!url || !branch) {
+  if (!url || branches.length === 0) {
     if (!process.stdin.isTTY || !process.stdout.isTTY) {
-      throw new Error('Missing required arguments in non-interactive mode. Usage: git-wt <repo-url> <branch-name> [options]');
+      throw new Error(
+        'Missing required arguments in non-interactive mode. Usage: git-wt <repo-url> <branch-name...> [options]',
+      );
     }
 
     console.log(chalk.cyan('Missing arguments, entering interactive input mode.'));
@@ -85,16 +113,16 @@ const resolveInputs = async (
     if (!url) {
       url = await promptRequiredValue('Enter Git repository URL');
     }
-    if (!branch) {
-      branch = await promptRequiredValue('Enter branch name');
+    if (branches.length === 0) {
+      branches = await promptRequiredBranches();
     }
   }
 
-  if (!url || !branch) {
-    throw new Error('Usage: git-wt <repo-url> <branch-name> [options]');
+  if (!url || branches.length === 0) {
+    throw new Error('Usage: git-wt <repo-url> <branch-name...> [options]');
   }
 
-  return { url, branch, dir };
+  return { url, branches, dir };
 };
 
 const ensureBareRepository = async (
@@ -174,33 +202,41 @@ const run = async () => {
 
   program
     .name('git-wt')
-    .description('A CLI tool to create git worktrees from a repository URL and branch name')
+    .description('A CLI tool to create git worktrees from a repository URL and branch name(s)')
     .version(version)
     .argument('[url]', 'Git repository URL')
-    .argument('[branch]', 'Branch name to checkout')
+    .argument('[branches...]', 'Branch name(s) to checkout')
     .option('-d, --dir <directory>', 'Base directory for worktrees', process.cwd())
-    .action(async (urlArg: string | undefined, branchArg: string | undefined, options: CliOptions) => {
+    .action(async (urlArg: string | undefined, branchArgs: string[] | undefined, options: CliOptions) => {
       const spinner = ora();
       try {
-        const { url, branch, dir } = await resolveInputs(urlArg, branchArg, options.dir);
+        const { url, branches, dir } = await resolveInputs(urlArg, branchArgs, options.dir);
         const repoName = resolveRepoName(url);
         const baseDir = path.resolve(dir);
 
         const repoDir = path.join(baseDir, repoName);
         const bareRepoPath = path.join(repoDir, '.bare');
-        const worktreePath = path.join(repoDir, branch);
+        const [firstBranch] = branches;
+        if (!firstBranch) {
+          throw new Error('No branch names were provided.');
+        }
 
         await fs.ensureDir(repoDir);
         await ensureBareRepository(url, bareRepoPath, spinner);
-        await createWorktree(bareRepoPath, worktreePath, branch, spinner);
+        const worktreeDetails: string[] = [];
+        for (const branch of branches) {
+          const worktreePath = path.join(repoDir, branch);
+          await createWorktree(bareRepoPath, worktreePath, branch, spinner);
+          worktreeDetails.push(`- ${chalk.cyan(branch)}: ${chalk.cyan(worktreePath)}`);
+        }
 
-        const relativeWorktreePath = path.relative(process.cwd(), worktreePath) || '.';
+        const relativeWorktreePath = path.relative(process.cwd(), path.join(repoDir, firstBranch)) || '.';
         console.log(
           '\n' +
             boxen(
               chalk.green('🎉 All done! \n\n') +
-                `📂 Worktree: ${chalk.cyan(worktreePath)}\n` +
-                `🌿 Branch:   ${chalk.cyan(branch)}\n\n` +
+                `📂 Repository: ${chalk.cyan(repoDir)}\n` +
+                `🌿 Worktrees:\n${worktreeDetails.join('\n')}\n\n` +
                 chalk.dim(`cd ${relativeWorktreePath}`),
               { padding: 1, borderStyle: 'round', borderColor: 'green' },
             ),
